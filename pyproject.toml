@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=75,<82"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mp3-desktop"
+version = "0.1.0"
+description = "Aplicativo desktop para MP3 autorizado e clipes de vídeos locais"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+authors = [{name = "Contribuidores do MP3 Desktop"}]
+dependencies = []
+
+[project.gui-scripts]
+mp3-desktop = "mp3_desktop.ui:main"
+
+[tool.setuptools.packages.find]
+include = ["mp3_desktop*"]
