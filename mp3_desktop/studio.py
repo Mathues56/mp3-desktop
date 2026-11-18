@@ -21,6 +21,8 @@ from .media import (
     PRESETS,
 )
 
+from .design import colors, SPACE_2, SPACE_3, SPACE_4
+
 
 class Studio(ttk.Frame):
     def __init__(self, parent, db):
@@ -44,49 +46,92 @@ class Studio(ttk.Frame):
         self._start_next()
         self.after(100, self._poll)
 
+    def _dark(self) -> bool:
+        root = self.winfo_toplevel()
+        return getattr(root, "theme", tk.StringVar(value="Claro")).get() == "Escuro"
+
+    def _c(self) -> dict:
+        return colors(self._dark())
+
+    def _primary_button(self, parent, text: str, command, **kw) -> ttk.Button:
+        return ttk.Button(
+            parent, text=text, command=command, style="Primary.TButton", **kw
+        )
+
+    def _secondary_button(self, parent, text: str, command, **kw) -> ttk.Button:
+        return ttk.Button(
+            parent, text=text, command=command, style="Secondary.TButton", **kw
+        )
+
     def _build(self):
+        self.configure(style="Card.TFrame")
         self.columnconfigure(0, weight=1)
         self.rowconfigure(2, weight=1)
+
         top = ttk.Frame(self)
-        top.grid(row=0, column=0, sticky="ew")
-        ttk.Button(top, text="Importar vídeos…", command=self._import).pack(side="left")
-        ttk.Button(top, text="Pré-visualizar no FFplay", command=self._preview).pack(
-            side="left", padx=8
+        top.grid(row=0, column=0, sticky="ew", pady=(0, SPACE_4))
+        self._primary_button_top = self._primary_button(
+            top, text="Importar vídeos…", command=self._import
         )
-        ttk.Label(top, textvariable=self.status, wraplength=480).pack(
-            side="left", padx=12
+        self._primary_button_top.pack(side="left")
+        self._secondary_button(
+            top,
+            text="Pré-visualizar no FFplay",
+            command=self._preview,
+        ).pack(side="left", padx=SPACE_3)
+        self.status_label = ttk.Label(
+            top, textvariable=self.status, wraplength=480, style="Muted.TLabel"
         )
+        self.status_label.pack(side="left", padx=SPACE_4)
+
         self.videos = ttk.Combobox(self, state="readonly")
-        self.videos.grid(row=1, column=0, sticky="ew", pady=(12, 4))
+        self.videos.grid(row=1, column=0, sticky="ew", pady=(0, SPACE_4))
         self.videos.bind("<<ComboboxSelected>>", self._select_video)
+
         body = ttk.Panedwindow(self, orient="horizontal")
         body.grid(row=2, column=0, sticky="nsew")
-        left = ttk.Frame(body, padding=10)
-        right = ttk.Frame(body, padding=10)
+
+        left = ttk.Frame(body, padding=SPACE_4)
+        right = ttk.Frame(body, padding=SPACE_4)
         body.add(left, weight=3)
         body.add(right, weight=2)
-        ttk.Label(left, text="Timeline (segundos)").pack(anchor="w")
+        ttk.Label(left, text="Timeline (segundos)", style="Section.TLabel").pack(
+            anchor="w", pady=(0, SPACE_2)
+        )
         self.timeline = ttk.Scale(left, from_=0, to=1, command=self._seek)
-        self.timeline.pack(fill="x", pady=8)
-        self.position = ttk.Label(left, text="0 s")
-        self.position.pack(anchor="w")
-        form = ttk.Frame(left)
-        form.pack(fill="x", pady=12)
-        for col, (label, var) in enumerate(
+        self.timeline.pack(fill="x", pady=(0, SPACE_2))
+        self.position = ttk.Label(left, text="0 s", style="Muted.TLabel")
+        self.position.pack(anchor="w", pady=(0, SPACE_4))
+
+        form_card = ttk.Frame(left, style="Card.TFrame")
+        form_card.pack(fill="x", pady=(0, SPACE_4))
+        form_inner = ttk.Frame(form_card, padding=SPACE_4)
+        form_inner.pack(fill="both")
+        form_inner.columnconfigure(0, weight=1)
+        form_inner.columnconfigure(1, weight=1)
+        form_inner.columnconfigure(2, weight=1)
+
+        for col, (label, var, width) in enumerate(
             (
-                ("Início (s)", self.start),
-                ("Fim (s)", self.end),
-                ("Título", self.title_var),
+                ("Início (s)", self.start, 14),
+                ("Fim (s)", self.end, 14),
+                ("Título", self.title_var, 23),
             )
         ):
-            ttk.Label(form, text=label).grid(row=0, column=col, sticky="w")
-            ttk.Entry(form, textvariable=var, width=14 if col < 2 else 23).grid(
-                row=1, column=col, sticky="ew", padx=(0, 8)
+            ttk.Label(form_inner, text=label, style="Muted.TLabel").grid(
+                row=0, column=col, sticky="w", pady=(0, SPACE_2)
             )
-        ttk.Button(left, text="Adicionar intervalo", command=self._add_clip).pack(
-            anchor="w"
+            ttk.Entry(form_inner, textvariable=var, width=width).grid(
+                row=1, column=col, sticky="ew", padx=(0, SPACE_3), pady=(0, SPACE_3)
+            )
+
+        self._primary_button(left, "Adicionar intervalo", command=self._add_clip).pack(
+            anchor="w", pady=(0, SPACE_4)
         )
-        ttk.Label(left, text="Clipe selecionado").pack(anchor="w", pady=(15, 3))
+
+        ttk.Label(left, text="Clipe selecionado", style="Section.TLabel").pack(
+            anchor="w", pady=(0, SPACE_2)
+        )
         self.clips = ttk.Treeview(
             left,
             columns=("start", "end", "title"),
@@ -94,37 +139,75 @@ class Studio(ttk.Frame):
             height=5,
             selectmode="extended",
         )
-        for key, label in (("start", "Início"), ("end", "Fim"), ("title", "Título")):
-            self.clips.heading(key, text=label)
-            self.clips.column(key, width=80 if key != "title" else 180)
-        self.clips.pack(fill="both", expand=True)
+
+        for col, label, width in (
+            ("start", "Início", 70),
+            ("end", "Fim", 70),
+            ("title", "Título", 200),
+        ):
+            self.clips.heading(col, text=label)
+            self.clips.column(col, width=width, anchor="w")
+
+        self.clips.pack(fill="x", pady=(0, SPACE_3))
         self.clips.bind("<<TreeviewSelect>>", self._select_clip)
-        actions = ttk.Frame(left)
-        actions.pack(anchor="w", pady=6)
-        ttk.Button(actions, text="Atualizar", command=self._update_clip).pack(
+        self._secondary_button(left, "Atualizar", command=self._update_clip).pack(
+            side="left", padx=(0, SPACE_3)
+        )
+        self._secondary_button(left, "Excluir", command=self._delete_clip).pack(
             side="left"
         )
-        ttk.Button(actions, text="Excluir", command=self._delete_clip).pack(
-            side="left", padx=8
+        ttk.Label(right, text="Exportação MP4", style="Section.TLabel").pack(
+            anchor="w", pady=(0, SPACE_2)
         )
-        ttk.Label(right, text="Exportação MP4").pack(anchor="w")
+        exp_card = ttk.Frame(right, style="Card.TFrame")
+        exp_card.pack(fill="x", pady=(0, SPACE_4))
+        exp_inner = ttk.Frame(exp_card, padding=SPACE_4)
+        exp_inner.pack(fill="both")
+        exp_inner.columnconfigure(0, weight=1)
+
+        ttk.Label(exp_inner, text="Proporção", style="Muted.TLabel").grid(
+            row=0, column=0, sticky="w", pady=(0, SPACE_2)
+        )
         ttk.Combobox(
-            right, textvariable=self.preset, values=list(PRESETS), state="readonly"
-        ).pack(fill="x", pady=5)
-        ttk.Label(right, text="Qualidade CRF (18 melhor, 32 menor)").pack(anchor="w")
-        ttk.Entry(right, textvariable=self.quality).pack(fill="x", pady=5)
-        ttk.Entry(right, textvariable=self.folder).pack(fill="x", pady=5)
-        ttk.Button(right, text="Escolher pasta…", command=self._choose_folder).pack(
-            anchor="w"
+            exp_inner,
+            textvariable=self.preset,
+            values=list(PRESETS),
+            state="readonly",
+            width=18,
+        ).grid(row=1, column=0, sticky="ew", pady=(0, SPACE_4))
+
+        ttk.Label(
+            exp_inner, text="Qualidade CRF (18 melhor, 32 menor)", style="Muted.TLabel"
+        ).grid(row=2, column=0, sticky="w", pady=(0, SPACE_2))
+        ttk.Entry(exp_inner, textvariable=self.quality, width=10).grid(
+            row=3, column=0, sticky="w", pady=(0, SPACE_4)
         )
-        ttk.Button(right, text="Adicionar à fila", command=self._enqueue).pack(
-            anchor="w", pady=(12, 4)
+
+        ttk.Label(exp_inner, text="Pasta", style="Muted.TLabel").grid(
+            row=4, column=0, sticky="w", pady=(0, SPACE_2)
         )
-        ttk.Button(
-            right, text="Cancelar exportação atual", command=self.cancel.set
-        ).pack(anchor="w")
+        folder_row = ttk.Frame(exp_inner)
+        folder_row.grid(row=5, column=0, sticky="ew", pady=(0, SPACE_4))
+        folder_row.columnconfigure(0, weight=1)
+        ttk.Entry(folder_row, textvariable=self.folder).grid(
+            row=0, column=0, sticky="ew"
+        )
+        self._secondary_button(
+            folder_row, "Escolher…", command=self._choose_folder
+        ).grid(row=0, column=1, padx=(SPACE_2, 0))
+
+        btn_row = ttk.Frame(exp_inner)
+        btn_row.grid(row=6, column=0, sticky="ew", pady=(SPACE_4, 0))
+        self._primary_button(btn_row, "Adicionar à fila", command=self._enqueue).pack(
+            side="left"
+        )
+        self._secondary_button(
+            btn_row, "Cancelar exportação atual", command=self.cancel.set
+        ).pack(side="left", padx=(SPACE_3, 0))
+
         self.progress = ttk.Progressbar(right, maximum=100)
-        self.progress.pack(fill="x", pady=12)
+        self.progress.pack(fill="x", pady=(0, SPACE_4))
+
         self.exports = ttk.Treeview(
             right, columns=("title", "status"), show="headings", height=5
         )

@@ -8,4 +8,5 @@
 - Atualize README e CHANGELOG quando o comportamento mudar.
 - Não anuncie recurso sem teste. Registre limitações com clareza.
 - Respeite direitos autorais e termos das fontes. Baixe apenas URLs diretas autorizadas.
+- Na interface web, mantenha HTML, CSS e JavaScript alinhados; marque como indisponível qualquer recurso sem implementação real.
 - Priorize segurança, manutenção e simplicidade.

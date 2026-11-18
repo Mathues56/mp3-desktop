@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="local-token" content="__LOCAL_TOKEN__">
+  <meta name="theme-color" content="#04222B">
+  <title>Media Studio</title>
+  <link rel="stylesheet" href="/app.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="#" data-go="overview" aria-label="Media Studio, visão geral">
+        <span class="brand-mark" aria-hidden="true">▶</span>
+        <span><strong>Media Studio</strong><small>Open source</small></span>
+      </a>
+      <nav aria-label="Navegação principal">
+        <p class="nav-label">Operação</p>
+        <button class="nav-item active" data-page="overview"><span aria-hidden="true">⌂</span>Visão Geral</button>
+        <button class="nav-item" data-page="downloads"><span aria-hidden="true">↓</span>Download</button>
+        <button class="nav-item" data-page="manager"><span aria-hidden="true">▤</span>Downloads</button>
+        <button class="nav-item" data-page="projects"><span aria-hidden="true">▣</span>Projetos</button>
+        <p class="nav-label">Edição</p>
+        <button class="nav-item" data-page="editor"><span aria-hidden="true">✂</span>Clipes</button>
+        <button class="nav-item" data-page="captions"><span aria-hidden="true">Aa</span>Transcrição</button>
+        <button class="nav-item" data-page="project-detail"><span aria-hidden="true">□</span>Detalhes do projeto</button>
+        <button class="nav-item" data-page="export"><span aria-hidden="true">↗</span>Exportação</button>
+        <p class="nav-label">Sistema</p>
+        <button class="nav-item" data-page="providers"><span aria-hidden="true">◇</span>Provedores de IA</button>
+        <button class="nav-item" data-page="workflow"><span aria-hidden="true">⋈</span>Automação</button>
+        <button class="nav-item" data-page="prompts"><span aria-hidden="true">≡</span>Prompts e regras</button>
+        <button class="nav-item" data-page="settings"><span aria-hidden="true">⚙</span>Configurações</button>
+        <button class="nav-item" data-page="history"><span aria-hidden="true">◷</span>Histórico e logs</button>
+        <button class="nav-item" data-page="metrics"><span aria-hidden="true">▥</span>Métricas e uso</button>
+      </nav>
+      <div class="sidebar-foot"><span class="local-dot"></span>Processamento local</div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <span id="breadcrumb">Visão Geral</span>
+        <span class="local-badge"><i></i>Este dispositivo</span>
+      </header>
+      <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+
+      <section class="page active" id="page-overview">
+        <div class="page-heading"><div><p class="eyebrow">Media Studio</p><h1>Visão Geral</h1></div></div>
+        <div class="summary-grid">
+          <div class="summary"><span>Downloads concluídos</span><strong id="count-downloads">0</strong></div>
+          <div class="summary"><span>Projetos</span><strong id="count-projects">0</strong></div>
+          <div class="summary"><span>Vídeos locais</span><strong id="count-videos">0</strong></div>
+          <div class="summary"><span>Clipes</span><strong id="count-clips">0</strong></div>
+        </div>
+        <section class="section-block">
+          <div class="section-heading"><h2>Acesso rápido</h2></div>
+          <div class="quick-actions">
+            <button class="action-link" data-go="downloads"><span class="action-symbol">↓</span><span><strong>Baixar MP3</strong><small>URL direta autorizada</small></span><b aria-hidden="true">›</b></button>
+            <button class="action-link" data-go="projects"><span class="action-symbol">▣</span><span><strong>Abrir projetos</strong><small>Vídeos e clipes locais</small></span><b aria-hidden="true">›</b></button>
+            <button class="action-link" data-go="editor"><span class="action-symbol">✂</span><span><strong>Editar clipes</strong><small>Recortar e exportar MP4</small></span><b aria-hidden="true">›</b></button>
+          </div>
+        </section>
+        <section class="section-block">
+          <div class="section-heading"><h2>Atividade recente</h2><button class="text-button" data-go="history">Abrir histórico</button></div>
+          <div id="recent-list" class="list"></div>
+        </section>
+      </section>
+
+      <section class="page" id="page-downloads">
+        <div class="page-heading"><div><p class="eyebrow">Operação</p><h1>Download de MP3</h1><p>Use uma URL HTTPS que entregue o arquivo MP3 diretamente e permita o download.</p></div></div>
+        <section class="panel">
+          <form id="download-form">
+            <div class="field"><label for="download-url">URL do arquivo</label><input id="download-url" type="url" placeholder="https://exemplo.com/audio.mp3" autocomplete="url" required></div>
+            <div class="field"><label for="download-folder">Pasta de destino</label><div class="field-with-button"><input id="download-folder" type="text" required><button class="button secondary" type="button" id="choose-download-folder">Escolher pasta</button></div></div>
+            <div class="form-footer"><span class="muted">Limite atual: <strong id="download-limit-label">500</strong> MB</span><button class="button primary" id="start-download" type="submit">Baixar MP3</button></div>
+          </form>
+        </section>
+        <p class="notice-inline">O aplicativo não baixa vídeos de plataformas nem converte formatos. Consulte o histórico após a conclusão.</p>
+      </section>
+
+      <section class="page" id="page-manager">
+        <div class="page-heading"><div><p class="eyebrow">Operação</p><h1>Downloads</h1><p>Uma transferência por vez. Pausa disponível quando o servidor permite retomada.</p></div></div>
+        <section class="panel">
+          <div class="section-heading"><h2>Transferência atual</h2><span id="download-status" class="status-text">Aguardando</span></div>
+          <p id="download-message" class="muted">Nenhum download em andamento.</p>
+          <progress id="download-progress" max="100" value="0"></progress>
+          <div class="progress-meta"><span id="download-meta">0 MB</span><div class="inline-actions"><button class="button secondary small" id="pause-download" type="button">Pausar</button><button class="button secondary small" id="resume-download" type="button">Retomar</button><button class="button quiet small" id="cancel-download" type="button">Cancelar</button></div></div>
+        </section>
+        <section class="section-block">
+          <div class="section-heading"><h2>Concluídos</h2><span id="history-count" class="muted"></span></div>
+          <div id="history-list" class="list"></div>
+        </section>
+      </section>
+
+      <section class="page" id="page-projects">
+        <div class="page-heading"><div><p class="eyebrow">Biblioteca</p><h1>Projetos</h1><p>Organize vídeos locais e seus intervalos de edição.</p></div><button class="button primary" id="new-project">Novo projeto</button></div>
+        <div id="projects-list" class="list"></div>
+        <section class="section-block">
+          <div class="section-heading"><h2>Vídeos sem projeto</h2><button class="button secondary small" id="import-unassigned">Importar vídeos</button></div>
+          <div id="unassigned-list" class="list"></div>
+        </section>
+      </section>
+
+      <section class="page" id="page-project-detail">
+        <div class="page-heading">
+          <div><p class="eyebrow">Biblioteca</p><h1 id="project-detail-title">Detalhes do projeto</h1><p id="project-detail-description">Selecione um projeto na biblioteca.</p></div>
+          <div class="page-actions"><button class="button secondary" id="edit-project">Editar</button><button class="button secondary" id="import-project-video">Adicionar vídeos</button><button class="button quiet" id="delete-project">Excluir projeto</button></div>
+        </div>
+        <div class="detail-meta"><span id="project-created"></span><span id="project-video-count"></span></div>
+        <section class="section-block"><div class="section-heading"><h2>Vídeos do projeto</h2></div><div id="project-videos-list" class="list"></div></section>
+      </section>
+
+      <section class="page" id="page-editor">
+        <div class="page-heading"><div><p class="eyebrow">Edição</p><h1>Editor de clipes</h1><p>Defina um intervalo e exporte o recorte em MP4 usando FFmpeg.</p></div><button class="button secondary" id="import-videos">Importar vídeos</button></div>
+        <section class="panel editor-panel">
+          <div class="field"><label for="video-select">Vídeo de origem</label><select id="video-select"><option value="">Nenhum vídeo importado</option></select></div>
+          <div id="video-empty" class="empty">Importe um vídeo local para começar.</div>
+          <div id="editor-controls" hidden>
+            <div class="video-meta"><span id="video-info"></span><span class="muted">Reprodução local</span></div>
+            <video id="media-player" class="media-player" controls playsinline preload="metadata" aria-label="Pré-visualização do vídeo"></video>
+            <label for="timeline">Posição <strong id="position-label">0 s</strong></label>
+            <input id="timeline" class="timeline" type="range" min="0" max="1" value="0" step="0.1" disabled>
+            <div class="track-lanes" aria-label="Faixas da linha do tempo">
+              <div class="track-row"><strong>V1 · Vídeo</strong><div class="track-rail" id="video-track"></div></div>
+              <div class="track-row"><strong>A1 · Áudio da fonte</strong><div class="track-rail" id="audio-track"></div></div>
+            </div>
+            <p class="field-help">A faixa de áudio acompanha o arquivo original; edição de volume e mídia de áudio independente ainda não estão disponíveis.</p>
+            <div class="form-grid">
+              <div class="field"><label for="clip-start">Início (s)</label><input id="clip-start" type="number" min="0" step="0.1" value="0"></div>
+              <div class="field"><label for="clip-end">Fim (s)</label><input id="clip-end" type="number" min="0" step="0.1" value="10"></div>
+              <div class="field"><label for="clip-title">Título</label><input id="clip-title" type="text" maxlength="120" value="Clipe 1"></div>
+            </div>
+            <div class="form-footer"><button class="button secondary small" id="mark-in" type="button">Marcar entrada</button><button class="button secondary small" id="mark-out" type="button">Marcar saída</button><button class="button primary" id="add-clip" type="button">Adicionar intervalo</button><button class="button secondary" id="update-clip" type="button">Atualizar selecionado</button><button class="button quiet" id="delete-clip" type="button">Excluir</button></div>
+          </div>
+        </section>
+        <section class="section-block"><div class="section-heading"><h2>Intervalos</h2><span id="clips-count" class="muted"></span></div><div id="clips-list" class="list"></div></section>
+      </section>
+
+      <section class="page" id="page-export">
+        <div class="page-heading"><div><p class="eyebrow">Edição</p><h1>Exportação</h1><p>Exportação MP4 local dos clipes selecionados.</p></div></div>
+        <section class="panel">
+          <div class="field"><label for="export-preset">Proporção</label><select id="export-preset"></select></div>
+          <div class="field"><label for="export-quality">Qualidade CRF</label><input id="export-quality" type="number" min="18" max="32" value="23"><small class="field-help">18 preserva mais qualidade; 32 gera arquivos menores.</small></div>
+          <div class="field"><label for="export-folder">Pasta de saída</label><div class="field-with-button"><input id="export-folder" type="text"><button class="button secondary" id="choose-export-folder" type="button">Escolher pasta</button></div></div>
+          <div class="form-footer"><span class="muted">Selecione um intervalo no Editor de clipes antes de adicionar à fila.</span><button class="button primary" id="enqueue" type="button" disabled>Adicionar à fila</button></div>
+        </section>
+        <section class="section-block">
+          <div class="section-heading"><h2>Fila de exportação</h2><button class="button quiet small" id="cancel-export" type="button" disabled>Cancelar atual</button></div>
+          <progress id="export-progress" max="100" value="0"></progress>
+          <div id="exports-list" class="list compact"></div>
+        </section>
+      </section>
+
+      <section class="page" id="page-captions">
+        <div class="page-heading"><div><p class="eyebrow">Edição</p><h1>Transcrição e legendas</h1></div></div>
+        <section class="unavailable"><span class="status-label">Indisponível nesta versão</span><p>Transcrição automática e exportação SRT ainda não estão implementadas. Nenhum áudio será enviado para serviços externos.</p></section>
+      </section>
+
+      <section class="page" id="page-providers">
+        <div class="page-heading"><div><p class="eyebrow">Sistema</p><h1>Provedores de IA</h1></div></div>
+        <section class="unavailable"><span class="status-label">Indisponível nesta versão</span><p>O aplicativo ainda não integra provedores de IA. Não há campos de chave, teste de conexão ou cobrança configurados.</p></section>
+      </section>
+
+      <section class="page" id="page-workflow">
+        <div class="page-heading"><div><p class="eyebrow">Sistema</p><h1>Fluxo de automação</h1></div></div>
+        <section class="panel"><h2>Fluxo disponível</h2><ol class="workflow-list"><li>Importar um vídeo local.</li><li>Marcar e revisar manualmente os intervalos.</li><li>Exportar os recortes em MP4 com FFmpeg.</li></ol></section>
+        <section class="unavailable"><span class="status-label">Automação indisponível</span><p>Detecção automática de destaques, transcrição e execução em lote ainda não fazem parte do aplicativo.</p></section>
+      </section>
+
+      <section class="page" id="page-prompts">
+        <div class="page-heading"><div><p class="eyebrow">Sistema</p><h1>Prompts e regras</h1></div></div>
+        <section class="unavailable"><span class="status-label">Indisponível nesta versão</span><p>Não há análise automática de conteúdo nem geração de sugestões de clipes configuradas.</p></section>
+      </section>
+
+      <section class="page" id="page-settings">
+        <div class="page-heading"><div><p class="eyebrow">Sistema</p><h1>Configurações</h1></div></div>
+        <section class="panel narrow">
+          <form id="settings-form">
+            <div class="field"><label for="settings-folder">Pasta padrão de downloads</label><div class="field-with-button"><input id="settings-folder" type="text" required><button class="button secondary" type="button" id="choose-settings-folder">Escolher pasta</button></div></div>
+            <div class="field"><label for="settings-limit">Limite por arquivo (MB)</label><input id="settings-limit" type="number" min="1" max="10240" required></div>
+            <button class="button primary" type="submit">Salvar configurações</button>
+          </form>
+        </section>
+      </section>
+
+      <section class="page" id="page-history">
+        <div class="page-heading"><div><p class="eyebrow">Sistema</p><h1>Histórico e logs</h1><p>Downloads concluídos e tarefas de exportação registradas localmente.</p></div></div>
+        <section class="section-block"><div class="section-heading"><h2>Downloads</h2><span id="history-count-full" class="muted"></span></div><div id="logs-downloads" class="list"></div></section>
+        <section class="section-block"><div class="section-heading"><h2>Exportações</h2></div><div id="logs-exports" class="list"></div></section>
+      </section>
+
+      <section class="page" id="page-metrics">
+        <div class="page-heading"><div><p class="eyebrow">Sistema</p><h1>Métricas e uso</h1><p>Contagens calculadas dos dados locais existentes.</p></div></div>
+        <dl class="metrics-list">
+          <div><dt>Downloads concluídos</dt><dd id="metric-downloads">0</dd></div>
+          <div><dt>Vídeos importados</dt><dd id="metric-videos">0</dd></div>
+          <div><dt>Intervalos salvos</dt><dd id="metric-clips">0</dd></div>
+          <div><dt>Exportações registradas</dt><dd id="metric-exports">0</dd></div>
+          <div><dt>Tamanho dos downloads MP3</dt><dd id="metric-download-size">0 MB</dd></div>
+          <div><dt>Tamanho dos vídeos importados</dt><dd id="metric-video-size">0 MB</dd></div>
+        </dl>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="project-modal" class="modal">
+    <form id="project-form">
+      <div class="modal-header"><div><p class="eyebrow">Biblioteca</p><h2 id="project-modal-title">Novo projeto</h2></div><button class="icon-button" type="button" id="close-project-modal" aria-label="Fechar">×</button></div>
+      <div class="modal-body">
+        <div class="field"><label for="project-name">Nome</label><input id="project-name" type="text" maxlength="120" required></div>
+        <div class="field"><label for="project-description">Descrição <span class="muted">(opcional)</span></label><textarea id="project-description" maxlength="2000" rows="4"></textarea></div>
+      </div>
+      <div class="modal-footer"><button class="button secondary" type="button" id="cancel-project-modal">Cancelar</button><button class="button primary" id="save-project" type="submit">Criar projeto</button></div>
+    </form>
+  </dialog>
+</body>
+</html>

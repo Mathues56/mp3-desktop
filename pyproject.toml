@@ -13,7 +13,10 @@ authors = [{name = "Contribuidores do MP3 Desktop"}]
 dependencies = []
 
 [project.gui-scripts]
-mp3-desktop = "mp3_desktop.ui:main"
+mp3-desktop = "mp3_desktop.web:main"
 
 [tool.setuptools.packages.find]
 include = ["mp3_desktop*"]
+
+[tool.setuptools.package-data]
+mp3_desktop = ["web_assets/*.html", "web_assets/*.css", "web_assets/*.js"]

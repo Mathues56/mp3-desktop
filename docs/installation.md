@@ -1,6 +1,6 @@
 # Instalação e build
 
-No Windows, instale Python 3.12 ou superior com Tkinter. Para o estúdio de clipes, instale FFmpeg com os programas `ffmpeg`, `ffprobe` e `ffplay` funcionais no PATH. Execute cada um com `-version` para conferir. Na pasta do projeto:
+No Windows, instale Python 3.12 ou superior com Tkinter. A interface padrão abre no navegador local; Tkinter fornece os seletores nativos de arquivos. Para o estúdio de clipes, instale FFmpeg com `ffmpeg` e `ffprobe` funcionais no PATH. `ffplay` só é necessário para a interface antiga executada com `app.py --classic`. Confira os programas necessários com `-version`. Na pasta do projeto:
 
 ```powershell
 py -3.13 -m venv .venv
@@ -16,7 +16,7 @@ Para testes e build:
 .\.venv\Scripts\ruff.exe check app.py mp3_desktop tests
 .\.venv\Scripts\ruff.exe format --check app.py mp3_desktop tests
 .\.venv\Scripts\python.exe -m pip install -r requirements-build.txt
-.\.venv\Scripts\python.exe -m PyInstaller --noconfirm --onefile --windowed --name MP3Desktop app.py
+.\.venv\Scripts\python.exe -m PyInstaller --noconfirm --onefile --windowed --collect-data mp3_desktop --name MP3Desktop app.py
 Get-FileHash .\dist\MP3Desktop.exe -Algorithm SHA256
 ```
 
