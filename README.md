@@ -39,7 +39,7 @@ Também é possível abrir `abrir-local.cmd` com dois cliques. Mantenha o termin
 
 ## Instalação no macOS
 
-Quando houver uma release macOS validada, escolha o ZIP conforme o processador:
+A release macOS `v0.1.2`, validada para Apple Silicon e Intel pelo workflow de build e smoke test, está disponível em [GitHub Releases](https://github.com/Mathues56/mp3-desktop/releases/tag/v0.1.2). Escolha o ZIP conforme o processador:
 
 O requisito mínimo declarado é macOS 15 (Sequoia); versões anteriores não são testadas. Para edição de vídeo, FFmpeg e FFprobe precisam estar instalados separadamente. O pacote inclui o Python da aplicação e não exige instalação do Python no Mac.
 
