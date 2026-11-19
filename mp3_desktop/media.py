@@ -7,6 +7,7 @@ import os
 import queue
 import shutil
 import subprocess
+import sys
 import threading
 import uuid
 from dataclasses import dataclass
@@ -16,6 +17,20 @@ from typing import Callable
 
 class MediaError(Exception):
     pass
+
+
+def _stop_process(process):
+    if process.poll() is not None:
+        return
+    try:
+        process.terminate()
+    except ProcessLookupError:
+        return
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()
 
 
 @dataclass(frozen=True)
@@ -45,7 +60,14 @@ PRESETS = {
 
 def binary(name: str) -> str:
     custom = os.environ.get(f"MP3_DESKTOP_{name.upper()}")
-    result = custom or shutil.which(name)
+    path = None
+    if sys.platform == "darwin":
+        path = os.pathsep.join(
+            filter(
+                None, (os.environ.get("PATH"), "/opt/homebrew/bin", "/usr/local/bin")
+            )
+        )
+    result = custom or shutil.which(name, path=path)
     if not result:
         raise MediaError(f"{name} não encontrado. Instale FFmpeg e confira o PATH.")
     return result
@@ -183,7 +205,7 @@ def export(
         threading.Thread(target=read_progress, daemon=True).start()
         while True:
             if cancel.is_set():
-                process.terminate()
+                _stop_process(process)
                 raise MediaError("Exportação cancelada.")
             try:
                 line = lines.get(timeout=0.2)
@@ -214,6 +236,5 @@ def export(
         raise MediaError("Não foi possível executar FFmpeg.") from exc
     finally:
         if process and process.poll() is None:
-            process.terminate()
-            process.wait()
+            _stop_process(process)
         temporary.unlink(missing_ok=True)

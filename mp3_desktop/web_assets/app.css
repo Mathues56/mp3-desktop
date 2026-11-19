@@ -27,6 +27,8 @@ button, input, select, textarea { font: inherit; }
 button { color: inherit; cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .48; }
 button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 0; box-shadow: var(--focus); border-color: var(--accent) !important; }
+.skip-link { position: fixed; top: 8px; left: 8px; z-index: 30; transform: translateY(-150%); padding: 9px 12px; border-radius: 6px; background: var(--accent); color: var(--bg); font-weight: 650; }
+.skip-link:focus { transform: translateY(0); box-shadow: var(--focus); }
 
 .shell { min-height: 100vh; display: grid; grid-template-columns: 236px minmax(0, 1fr); }
 .sidebar { position: sticky; top: 0; height: 100vh; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; padding: 22px 14px 16px; background: var(--surface); border-right: 1px solid var(--border-soft); }
@@ -41,6 +43,11 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .nav-item > span { width: 18px; flex: 0 0 18px; color: var(--accent-soft); text-align: center; font-size: 15px; }
 .nav-item:hover { background: var(--hover); color: var(--text); }
 .nav-item.active { background: rgba(79, 184, 180, .17); color: var(--text); box-shadow: inset 3px 0 var(--accent); }
+.nav-more { margin-top: 4px; }
+.nav-more-toggle::-webkit-details-marker { display: none; }
+.nav-more-toggle::after { margin-left: auto; content: "›"; }
+.nav-more[open] > .nav-more-toggle::after { content: "⌄"; }
+.nav-more-content { display: grid; gap: 3px; padding-top: 5px; }
 .sidebar-foot { display: flex; align-items: center; gap: 8px; margin-top: auto; padding: 14px 10px 0; border-top: 1px solid var(--border-soft); color: var(--text-muted); font-size: 11px; }
 .local-dot, .local-badge i { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
 
@@ -164,22 +171,26 @@ progress::-moz-progress-bar { background: var(--accent); }
   .action-link + .action-link { border-top: 1px solid var(--border-soft); border-left: 0; }
 }
 @media (max-width: 680px) {
-  html, body { width: 100%; overflow-x: hidden; }
-  .shell { display: block; width: 100vw; max-width: 100vw; overflow-x: hidden; }
+  html, body { width: 100%; }
+  .shell { display: block; width: 100%; max-width: 100%; }
   .sidebar { position: static; width: 100%; max-width: 100%; min-width: 0; height: auto; max-height: none; padding: 12px; overflow: visible; border-right: 0; border-bottom: 1px solid var(--border-soft); }
   .brand { padding-bottom: 10px; }
-  .sidebar nav { display: flex; width: 100%; max-width: 100%; min-width: 0; gap: 4px; overflow-x: auto; overflow-y: hidden; padding-bottom: 3px; scrollbar-width: thin; }
+  .sidebar nav { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; max-width: 100%; min-width: 0; gap: 4px; }
   .nav-label { display: none; }
-  .nav-item { width: auto; min-height: 34px; flex: 0 0 auto; padding: 6px 9px; font-size: 12px; white-space: nowrap; }
+  .nav-more-content .nav-label { display: block; }
+  .nav-item { width: 100%; min-width: 0; min-height: 42px; padding: 6px; gap: 6px; font-size: 11px; line-height: 1.25; }
+  .nav-item > span { width: 16px; flex-basis: 16px; }
+  .nav-more { grid-column: 1 / -1; }
+  .nav-more-content { display: grid; }
   .nav-item.active { box-shadow: inset 0 -2px var(--accent); }
   .sidebar-foot { display: none; }
   .topbar { position: static; height: 45px; padding-inline: 18px; }
-  .local-badge { display: none; }
-  .main, .page { width: 100vw; max-width: 100vw; min-width: 0; }
+  .local-badge { font-size: 11px; }
+  .main, .page { width: 100%; max-width: 100%; min-width: 0; }
   .page { padding: 23px 18px 40px; }
   .page-heading { align-items: flex-start; flex-direction: column; margin-bottom: 18px; }
   .page-actions { flex-wrap: wrap; }
-  .summary-grid { grid-template-columns: 1fr; gap: 8px; }
+  .summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
   .quick-actions, .summary, .section-block, .panel, .list { min-width: 0; max-width: 100%; }
   .summary { min-height: 84px; padding: 13px; }
   .summary strong { font-size: 24px; }

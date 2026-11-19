@@ -3,17 +3,22 @@
 import json
 import os
 import sqlite3
+import sys
 from pathlib import Path
+
+
+def _default_data_dir() -> Path:
+    if sys.platform == "win32":
+        return Path.home() / "AppData" / "Local" / "MP3Desktop"
+    if sys.platform == "darwin":
+        return Path.home() / "Library" / "Application Support" / "MediaStudio"
+    return Path.home() / ".local" / "share" / "mp3-desktop"
 
 
 DATA_DIR = (
     Path(os.environ["MP3_DESKTOP_DATA_DIR"])
     if "MP3_DESKTOP_DATA_DIR" in os.environ
-    else (
-        Path.home() / "AppData" / "Local" / "MP3Desktop"
-        if os.name == "nt"
-        else Path.home() / ".local" / "share" / "mp3-desktop"
-    )
+    else _default_data_dir()
 )
 
 

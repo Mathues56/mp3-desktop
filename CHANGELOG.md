@@ -1,7 +1,14 @@
 # Changelog
 
-## Não publicado
+## 0.1.2 — 2026-11-19
 
+- Simplificada a navegação principal, com acesso contextual aos detalhes de projetos e menu responsivo sem rolagem horizontal.
+- Adicionado suporte de persistência macOS em `~/Library/Application Support/MediaStudio`.
+- Adicionados seletores nativos macOS por `osascript`, descoberta de FFmpeg nos prefixos Apple Silicon/Intel do Homebrew e abertura multiplataforma de pastas.
+- Adicionado encerramento autenticado do servidor local, cancelamento de tarefas e limpeza de processos FFmpeg.
+- Reforçada a fronteira local da API validando `Host` e `Origin` além do token de sessão.
+- Adicionado workflow macOS com builds arm64/x86_64, testes, smoke test de exportação real, ZIP e SHA-256; publicação manual após workflow verde.
+- Documentados instalação, execução do código-fonte, FFmpeg externo, formatos suportados e limites de assinatura/notarização.
 - Interface web alinhada às referências com navegação consistente, estados responsivos e limites de recursos claramente identificados.
 - Projetos locais com nome, descrição, associação de vídeos e edição/exclusão sem apagar os arquivos de origem ou intervalos.
 - Páginas de métricas e histórico baseadas nos registros SQLite existentes; sem gráficos ou eventos simulados.

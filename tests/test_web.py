@@ -2,12 +2,14 @@
 
 import json
 import re
+import subprocess
 import tempfile
 import threading
 import unittest
 import urllib.error
 import urllib.request
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from mp3_desktop import storage
@@ -38,6 +40,7 @@ class WebTests(unittest.TestCase):
         self.server.shutdown()
         self.server.server_close()
         self.thread.join(timeout=2)
+        self.service.close()
         self.data_patch.stop()
         self.temp.cleanup()
 
@@ -86,6 +89,70 @@ class WebTests(unittest.TestCase):
             )
         self.assertEqual(error.exception.code, 400)
 
+    def test_local_server_rejects_untrusted_hosts_and_origins(self):
+        request = urllib.request.Request(
+            self.base + "/", headers={"Host": "attacker.example"}
+        )
+        with self.assertRaises(urllib.error.HTTPError) as error:
+            urllib.request.urlopen(request, timeout=3)
+        self.assertEqual(error.exception.code, 403)
+
+        request = urllib.request.Request(
+            self.base + "/api/state",
+            headers={
+                "Host": f"127.0.0.1:{self.server.server_port}",
+                "Origin": "https://attacker.example",
+                "X-Local-Token": "test-token",
+            },
+        )
+        with self.assertRaises(urllib.error.HTTPError) as error:
+            urllib.request.urlopen(request, timeout=3)
+        self.assertEqual(error.exception.code, 403)
+
+    def test_mac_native_dialogs_and_folder_open(self):
+        completed = subprocess.CompletedProcess(
+            args=[], returncode=0, stdout="/tmp/one.mp4\x1f/tmp/two.mov\n", stderr=""
+        )
+        with (
+            patch("mp3_desktop.web.sys", SimpleNamespace(platform="darwin")),
+            patch("mp3_desktop.web.subprocess.run", return_value=completed) as run,
+        ):
+            self.assertEqual(
+                self.service.choose("videos"), ["/tmp/one.mp4", "/tmp/two.mov"]
+            )
+            self.assertEqual(run.call_args.args[0][0], "/usr/bin/osascript")
+            self.assertIn("choose file", run.call_args.args[0][2])
+
+            run.return_value = subprocess.CompletedProcess(
+                args=[], returncode=0, stdout="/tmp/output\n", stderr=""
+            )
+            self.assertEqual(self.service.choose("export_folder"), "/tmp/output")
+            self.assertIn("choose folder", run.call_args.args[0][2])
+
+            with patch("mp3_desktop.web.subprocess.Popen") as popen:
+                self.service.open_folder({"path": self.temp.name})
+            popen.assert_called_once_with(["/usr/bin/open", self.temp.name])
+
+    def test_mac_data_directory_uses_application_support(self):
+        home = Path(self.temp.name)
+        with (
+            patch("mp3_desktop.storage.sys", SimpleNamespace(platform="darwin")),
+            patch("mp3_desktop.storage.Path.home", return_value=home),
+        ):
+            self.assertEqual(
+                storage._default_data_dir(),
+                home / "Library" / "Application Support" / "MediaStudio",
+            )
+
+    def test_shutdown_requires_token_and_stops_server(self):
+        with self.assertRaises(urllib.error.HTTPError) as error:
+            self.request("/api/shutdown", {}, token=False)
+        self.assertEqual(error.exception.code, 403)
+        with self.request("/api/shutdown", {}) as response:
+            self.assertEqual(response.status, 200)
+        self.thread.join(timeout=2)
+        self.assertFalse(self.thread.is_alive())
+
     def test_media_endpoint_requires_token_and_supports_byte_ranges(self):
         path = Path(self.temp.name) / "source.mp4"
         payload = b"0123456789-media-bytes"
@@ -108,7 +175,9 @@ class WebTests(unittest.TestCase):
         )
         with urllib.request.urlopen(request, timeout=3) as response:
             self.assertEqual(response.status, 206)
-            self.assertEqual(response.headers["Content-Range"], f"bytes 2-6/{len(payload)}")
+            self.assertEqual(
+                response.headers["Content-Range"], f"bytes 2-6/{len(payload)}"
+            )
             self.assertEqual(response.read(), payload[2:7])
 
         with self.assertRaises(urllib.error.HTTPError) as error:

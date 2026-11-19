@@ -1,0 +1,99 @@
+name: macOS builds
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing tag to attach validated macOS packages to a GitHub Release
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - architecture: arm64
+            runner: macos-15
+          - architecture: x86_64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install test, build, and media tools
+        run: |
+          python -m pip install -e . -r requirements-dev.txt -r requirements-build.txt
+          brew install ffmpeg
+          ffmpeg -version
+          ffprobe -version
+      - name: Run automated tests and checks
+        run: |
+          python -m unittest discover -s tests -v
+          python -m compileall -q app.py mp3_desktop tests
+          ruff check app.py mp3_desktop tests
+          ruff format --check app.py mp3_desktop tests
+      - name: Build macOS app bundle
+        run: >-
+          python -m PyInstaller --noconfirm --windowed --collect-data mp3_desktop
+          --name MediaStudio --osx-bundle-identifier org.mediastudio.desktop
+          --target-architecture ${{ matrix.architecture }} app.py
+      - name: Smoke test packaged app and FFmpeg export
+        run: python tests/smoke_macos_app.py dist/MediaStudio.app/Contents/MacOS/MediaStudio
+      - name: Verify architecture and package
+        env:
+          ARCHITECTURE: ${{ matrix.architecture }}
+        run: |
+          lipo -archs dist/MediaStudio.app/Contents/MacOS/MediaStudio | grep -q "$ARCHITECTURE"
+          plutil -lint dist/MediaStudio.app/Contents/Info.plist
+          if find dist/MediaStudio.app -type f \( -name ffmpeg -o -name ffprobe \) -print -quit | grep -q .; then
+            echo "FFmpeg was unexpectedly bundled in the app."
+            exit 1
+          fi
+          ditto -c -k --sequesterRsrc --keepParent dist/MediaStudio.app "dist/MediaStudio-macos-$ARCHITECTURE.zip"
+          (cd dist && shasum -a 256 "MediaStudio-macos-$ARCHITECTURE.zip" > "MediaStudio-macos-$ARCHITECTURE.zip.sha256")
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MediaStudio-macos-${{ matrix.architecture }}
+          path: |
+            dist/MediaStudio-macos-${{ matrix.architecture }}.zip
+            dist/MediaStudio-macos-${{ matrix.architecture }}.zip.sha256
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    if: github.event_name == 'workflow_dispatch' && inputs.release_tag != ''
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: MediaStudio-macos-*
+          path: release-assets
+          merge-multiple: true
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" release-assets/* --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$RELEASE_TAG" release-assets/* --title "$RELEASE_TAG" --notes-file CHANGELOG.md --repo "$GITHUB_REPOSITORY"
+          fi

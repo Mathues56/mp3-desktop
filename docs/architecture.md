@@ -10,6 +10,10 @@ O serviço web cria uma conexão SQLite por operação e fecha cada conexão. Do
 
 Para testes isolados, `MP3_DESKTOP_DATA_DIR` pode apontar para uma pasta local temporária.
 
+No macOS, `storage.py` usa `~/Library/Application Support/MediaStudio`; no Windows mantém `%LOCALAPPDATA%/MP3Desktop`, e em Linux usa `~/.local/share/mp3-desktop`. O servidor continua vinculado a `127.0.0.1`, gera token novo por sessão e valida `Host`/`Origin` locais antes de atender rotas. Os seletores do serviço web usam `osascript` com scripts estáticos no macOS, pois os handlers HTTP rodam em threads e o Tk do macOS exige integração com a thread de interface. Windows e Linux mantêm os seletores Tkinter.
+
+O pacote macOS é produzido em runners nativos por arquitetura via PyInstaller `--windowed`; ele inclui Python e os assets web, mas não FFmpeg. Para execução pelo Finder, o botão autenticado de encerramento para o servidor, sinaliza cancelamento aos downloads e ao FFmpeg e espera os workers por tempo limitado. `SIGTERM` segue o mesmo caminho. O FFmpeg é localizado pelo PATH e, no macOS, pelos prefixos padrões do Homebrew. O workflow valida inicialização, token local, projetos, importação, clipe, exportação sintética e encerramento; interações gráficas com Finder e seletores precisam de validação manual num Mac.
+
 A pausa guarda o arquivo parcial apenas em memória da sessão; retomada exige resposta `206` com `Content-Range` correspondente. Falhas e cancelamento removem o temporário. A finalização usa um hard link exclusivo no mesmo volume para evitar sobrescrita.
 
 `media.py` usa FFprobe para metadados e FFmpeg para exportação MP4. Os processos recebem caminhos como argumentos, sem shell. O progresso vem de `-progress pipe:1`; cancelamento termina o processo e remove o temporário. O vídeo não é carregado inteiro na memória. SQLite persiste vídeos, intervalos, tarefas de exportação e projetos. `project_videos` organiza vídeos já importados sem copiar os arquivos. Excluir um projeto remove somente as associações; vídeos e intervalos permanecem. Tarefas em andamento na inicialização seguinte ficam como `interrupted`, para revisão manual.

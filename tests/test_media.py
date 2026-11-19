@@ -1,12 +1,23 @@
 import json
+import os
+import subprocess
 import tempfile
 import threading
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from mp3_desktop import storage
-from mp3_desktop.media import Clip, MediaError, Video, export, probe, validate_clip
+from mp3_desktop.media import (
+    Clip,
+    MediaError,
+    Video,
+    binary,
+    export,
+    probe,
+    validate_clip,
+)
 
 
 class MediaTests(unittest.TestCase):
@@ -58,7 +69,7 @@ class MediaTests(unittest.TestCase):
                 Path(command[-1]).write_bytes(b"mp4 output")
                 self.stdout = iter(["out_time_us=5000000\n"])
 
-            def wait(self):
+            def wait(self, timeout=None):
                 return 0
 
             def poll(self):
@@ -101,7 +112,7 @@ class MediaTests(unittest.TestCase):
             def terminate(self):
                 pass
 
-            def wait(self):
+            def wait(self, timeout=None):
                 return 1
 
             def poll(self):
@@ -121,6 +132,57 @@ class MediaTests(unittest.TestCase):
                 popen=Process,
             )
         self.assertEqual(list(self.folder.glob(".mp3-desktop-*.mp4")), [])
+
+    def test_cancel_kills_ffmpeg_if_terminate_times_out(self):
+        class Process:
+            killed = False
+            stdout = iter(())
+
+            def poll(self):
+                return 1 if self.killed else None
+
+            def terminate(self):
+                pass
+
+            def wait(self, timeout=None):
+                if timeout is not None:
+                    raise subprocess.TimeoutExpired("ffmpeg", timeout)
+                return 1
+
+            def kill(self):
+                self.killed = True
+
+        process = Process()
+        cancel = threading.Event()
+        cancel.set()
+        with patch("mp3_desktop.media.binary", return_value="ffmpeg"):
+            with self.assertRaises(MediaError):
+                export(
+                    Clip(1, 0, 10, "x"),
+                    self.video,
+                    self.folder,
+                    "Original",
+                    23,
+                    lambda _: None,
+                    cancel,
+                    popen=lambda *_args, **_kwargs: process,
+                )
+        self.assertTrue(process.killed)
+        self.assertEqual(list(self.folder.glob(".mp3-desktop-*.mp4")), [])
+
+    def test_macos_ffmpeg_lookup_includes_homebrew_prefixes(self):
+        with (
+            patch("mp3_desktop.media.sys", SimpleNamespace(platform="darwin")),
+            patch.dict(os.environ, {"PATH": "/usr/bin"}),
+            patch(
+                "mp3_desktop.media.shutil.which",
+                return_value="/opt/homebrew/bin/ffmpeg",
+            ) as which,
+        ):
+            self.assertEqual(binary("ffmpeg"), "/opt/homebrew/bin/ffmpeg")
+        search_path = which.call_args.kwargs["path"].split(os.pathsep)
+        self.assertIn("/opt/homebrew/bin", search_path)
+        self.assertIn("/usr/local/bin", search_path)
 
 
 if __name__ == "__main__":

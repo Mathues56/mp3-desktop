@@ -18,11 +18,13 @@ Aplicativo local em português para baixar **arquivos MP3 publicados para downlo
 
 ## Requisitos
 
-Windows 10/11 e Python 3.12+ para executar do código-fonte. A interface abre no navegador padrão; Tkinter, incluído no Python para Windows, fornece os seletores de arquivo e pasta. Para vídeo, instale **FFmpeg e FFprobe** funcionais no PATH. FFplay só é necessário para a interface Tkinter antiga (`app.py --classic`). Linux e macOS ainda não foram validados.
+Windows 10/11 e Python 3.12+ para executar do código-fonte. A interface abre no navegador padrão; Tkinter fornece os seletores no Windows. Para edição de vídeo, instale **FFmpeg e FFprobe** no PATH. FFplay só é necessário para a interface Tkinter antiga (`app.py --classic`).
+
+O workflow macOS compila pacotes `.app` em runners Apple Silicon e Intel, executa os testes e faz um smoke test de inicialização, importação, edição e exportação. Os pacotes só são publicados após esses passos passarem. Isso ainda não equivale a validação em Finder num Mac de usuário, assinatura Developer ID ou notarização Apple.
 
 ## Instalação no Windows
 
-Ainda não há executável validado nem página de Releases publicada. Para executar do código-fonte:
+Ainda não há instalador Windows validado. Para executar do código-fonte:
 
 ```powershell
 cd <CAMINHO_DO_PROJETO>
@@ -34,6 +36,23 @@ py -3.13 -m venv .venv
 Python 3.12 também funciona: troque `py -3.13` por `py -3.12`.
 
 Também é possível abrir `abrir-local.cmd` com dois cliques. Mantenha o terminal aberto enquanto usar a interface no navegador. Para a interface Tkinter anterior, execute `python app.py --classic`.
+
+## Instalação no macOS
+
+Quando houver uma release macOS validada, escolha o ZIP conforme o processador:
+
+O requisito mínimo declarado é macOS 15 (Sequoia); versões anteriores não são testadas. Para edição de vídeo, FFmpeg e FFprobe precisam estar instalados separadamente. O pacote inclui o Python da aplicação e não exige instalação do Python no Mac.
+
+- `MediaStudio-macos-arm64.zip`: Apple Silicon (M1 ou posterior).
+- `MediaStudio-macos-x86_64.zip`: Intel.
+
+Descompacte o arquivo e mova `MediaStudio.app` para `Aplicativos`; abra pelo Finder. Python não é necessário para o pacote. O aplicativo inicia o servidor local em `127.0.0.1`, abre a interface no navegador padrão e pode ser encerrado em **Configurações → Encerrar Media Studio**. O encerramento cancela tarefas ativas; exportações pendentes permanecem no histórico.
+
+O pacote não inclui FFmpeg. Para importar e exportar vídeo, instale FFmpeg e FFprobe separadamente, por exemplo com `brew install ffmpeg`, e confirme `ffmpeg -version` e `ffprobe -version`. O app procura também nos caminhos padrão do Homebrew (`/opt/homebrew/bin` e `/usr/local/bin`). A [fórmula FFmpeg do Homebrew](https://formulae.brew.sh/formula/ffmpeg) declara GPL-3.0-or-later; ela é instalada e distribuída pelo próprio Homebrew, não pelo Media Studio. O projeto FFmpeg explica as [licenças e opções de build](https://ffmpeg.org/legal.html); verifique os termos da distribuição escolhida antes de usar.
+
+Os downloads do aplicativo são apenas para URLs HTTPS que entregam diretamente um MP3 autorizado. O editor importa vídeos locais e exporta clipes em MP4; conversão de vídeo para MP3 não está implementada. Para áudio, use o download MP3 direto.
+
+O pacote não tem assinatura Developer ID nem notarização Apple. O Gatekeeper pode avisar que o desenvolvedor não foi identificado ou impedir a abertura; não desative as proteções do macOS. Uma distribuição pública sem esses certificados não deve ser apresentada como instalação confiável de uso geral. Veja [instalação e build](docs/installation.md) para requisitos, limitações e fluxo de desenvolvedor.
 
 ## Uso
 
@@ -54,7 +73,7 @@ Para um teste legal, use um MP3 disponibilizado por você mesmo em um servidor H
 
 ## Design visual
 
-A interface padrão usa `mp3_desktop/web_assets/index.html`, `app.css` e `app.js`. As cores vêm da referência enviada: fundo azul-petróleo, painéis em teal e realce menta. A navegação, formulários, estados vazios, foco de teclado e layout responsivo ficam nesses arquivos. A interface Tkinter anterior permanece disponível em `app.py --classic`, com seus estilos em `mp3_desktop/design.py`.
+A interface padrão usa `mp3_desktop/web_assets/index.html`, `app.css` e `app.js`. As cores vêm da referência enviada: fundo azul-petróleo, painéis em teal e realce menta. A navegação prioriza downloads, transferências, projetos, clipes e exportação; páginas secundárias ficam em “Mais”, e os detalhes de um projeto são abertos pela biblioteca. Formulários, estados vazios, foco de teclado e layout responsivo também ficam nesses arquivos. A interface Tkinter anterior permanece disponível em `app.py --classic`, com seus estilos em `mp3_desktop/design.py`.
 
 ## Desenvolvimento
 
@@ -67,7 +86,30 @@ python -m pip install -r requirements-build.txt
 python -m PyInstaller --noconfirm --onefile --windowed --collect-data mp3_desktop --name MP3Desktop app.py
 ```
 
-O executável gerado fica em `dist/MP3Desktop.exe`. A build precisa ser validada em Windows antes de publicar. Veja [instalação](docs/installation.md), [arquitetura](docs/architecture.md) e [contribuição](CONTRIBUTING.md).
+O executável Windows gerado fica em `dist/MP3Desktop.exe`. Para macOS, veja a seção abaixo e [instalação](docs/installation.md). Consulte também [arquitetura](docs/architecture.md) e [contribuição](CONTRIBUTING.md).
+
+### Desenvolvedores macOS
+
+Execute em um Mac com Python 3.12+, Tkinter e FFmpeg/FFprobe. O app do usuário não precisa de Python; esta seção é apenas para executar e empacotar o código-fonte:
+
+```sh
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e . -r requirements-dev.txt -r requirements-build.txt
+brew install ffmpeg
+python -m unittest discover -s tests -v
+ruff check app.py mp3_desktop tests
+ruff format --check app.py mp3_desktop tests
+python app.py
+```
+
+O workflow `.github/workflows/macos.yml` constrói e valida separadamente arm64 (`macos-15`) e x86_64 (`macos-15-intel`). Para gerar localmente, execute no Mac da arquitetura desejada:
+
+```sh
+python -m PyInstaller --noconfirm --windowed --collect-data mp3_desktop --name MediaStudio --osx-bundle-identifier org.mediastudio.desktop --target-architecture arm64 app.py
+```
+
+Troque `arm64` por `x86_64` num Mac Intel. A build local não assina nem notariza o app. Não inclua FFmpeg no pacote sem auditar a licença e a configuração exatas do binário distribuído.
 
 ## Limitações e perguntas frequentes
 
@@ -83,6 +125,7 @@ O executável gerado fica em `dist/MP3Desktop.exe`. A build precisa ser validada
 - **O que acontece ao excluir um projeto?** A associação é removida; vídeos e intervalos de edição permanecem no dispositivo.
 - **Arrastar e soltar vídeos funciona?** Ainda não; use o seletor de arquivos com seleção múltipla.
 - **Vídeos de quatro horas foram validados?** Não. FFmpeg processa em fluxo, mas desempenho e espaço em disco dependem do arquivo e da máquina.
+- **O macOS está validado?** O workflow testa o app empacotado e exporta um clipe sintético em runners arm64 e x86_64. Finder, diálogos nativos interativos e Macs físicos ainda precisam de validação manual; assinatura Developer ID e notarização permanecem ausentes.
 
 Veja [solução de problemas](docs/troubleshooting.md) e a [especificação independente do editor](docs/editor-architecture.md). Use apenas materiais que você tenha direito de baixar. O aplicativo não concede direitos sobre nenhum conteúdo.
 
@@ -90,4 +133,4 @@ Veja [solução de problemas](docs/troubleshooting.md) e a [especificação inde
 
 Licença [MIT](LICENSE). Consulte [segurança](SECURITY.md), [código de conduta](CODE_OF_CONDUCT.md) e [guia de contribuição](CONTRIBUTING.md).
 
-**Roadmap:** refinar edição em múltiplas trilhas, adicionar áudio independente e avaliar sugestões locais de clipes e provedores de IA. Executável Windows validado e release permanecem pendentes. Os itens futuros não são compromissos de prazo.
+**Roadmap:** refinar edição em múltiplas trilhas, adicionar áudio independente e avaliar sugestões locais de clipes e provedores de IA. As releases macOS só são publicadas após o workflow de build e smoke test; assinatura/notarização e validação em Macs físicos continuam pendentes. Os itens futuros não são compromissos de prazo.

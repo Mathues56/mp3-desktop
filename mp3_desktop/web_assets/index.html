@@ -10,6 +10,7 @@
   <script src="/app.js" defer></script>
 </head>
 <body>
+  <a class="skip-link" href="#app-content">Pular para o conteúdo</a>
   <div class="shell">
     <aside class="sidebar">
       <a class="brand" href="#" data-go="overview" aria-label="Media Studio, visão geral">
@@ -17,28 +18,32 @@
         <span><strong>Media Studio</strong><small>Open source</small></span>
       </a>
       <nav aria-label="Navegação principal">
-        <p class="nav-label">Operação</p>
-        <button class="nav-item active" data-page="overview"><span aria-hidden="true">⌂</span>Visão Geral</button>
-        <button class="nav-item" data-page="downloads"><span aria-hidden="true">↓</span>Download</button>
-        <button class="nav-item" data-page="manager"><span aria-hidden="true">▤</span>Downloads</button>
+        <p class="nav-label">Principal</p>
+        <button class="nav-item active" data-page="overview" aria-current="page"><span aria-hidden="true">⌂</span>Visão Geral</button>
+        <button class="nav-item" data-page="downloads"><span aria-hidden="true">↓</span>Baixar MP3</button>
+        <button class="nav-item" data-page="manager"><span aria-hidden="true">▤</span>Transferências</button>
         <button class="nav-item" data-page="projects"><span aria-hidden="true">▣</span>Projetos</button>
-        <p class="nav-label">Edição</p>
         <button class="nav-item" data-page="editor"><span aria-hidden="true">✂</span>Clipes</button>
-        <button class="nav-item" data-page="captions"><span aria-hidden="true">Aa</span>Transcrição</button>
-        <button class="nav-item" data-page="project-detail"><span aria-hidden="true">□</span>Detalhes do projeto</button>
         <button class="nav-item" data-page="export"><span aria-hidden="true">↗</span>Exportação</button>
-        <p class="nav-label">Sistema</p>
-        <button class="nav-item" data-page="providers"><span aria-hidden="true">◇</span>Provedores de IA</button>
-        <button class="nav-item" data-page="workflow"><span aria-hidden="true">⋈</span>Automação</button>
-        <button class="nav-item" data-page="prompts"><span aria-hidden="true">≡</span>Prompts e regras</button>
-        <button class="nav-item" data-page="settings"><span aria-hidden="true">⚙</span>Configurações</button>
-        <button class="nav-item" data-page="history"><span aria-hidden="true">◷</span>Histórico e logs</button>
-        <button class="nav-item" data-page="metrics"><span aria-hidden="true">▥</span>Métricas e uso</button>
+        <details class="nav-more">
+          <summary class="nav-item nav-more-toggle">Mais</summary>
+          <div class="nav-more-content">
+            <p class="nav-label">Sistema</p>
+            <button class="nav-item" data-page="settings"><span aria-hidden="true">⚙</span>Configurações</button>
+            <button class="nav-item" data-page="history"><span aria-hidden="true">◷</span>Histórico e logs</button>
+            <button class="nav-item" data-page="metrics"><span aria-hidden="true">▥</span>Métricas e uso</button>
+            <p class="nav-label">Recursos adicionais</p>
+            <button class="nav-item" data-page="captions"><span aria-hidden="true">Aa</span>Transcrição</button>
+            <button class="nav-item" data-page="providers"><span aria-hidden="true">◇</span>Provedores de IA</button>
+            <button class="nav-item" data-page="workflow"><span aria-hidden="true">⋈</span>Automação</button>
+            <button class="nav-item" data-page="prompts"><span aria-hidden="true">≡</span>Prompts e regras</button>
+          </div>
+        </details>
       </nav>
       <div class="sidebar-foot"><span class="local-dot"></span>Processamento local</div>
     </aside>
 
-    <main class="main">
+    <main class="main" id="app-content" tabindex="-1">
       <header class="topbar">
         <span id="breadcrumb">Visão Geral</span>
         <span class="local-badge"><i></i>Este dispositivo</span>
@@ -181,6 +186,11 @@
             <div class="field"><label for="settings-limit">Limite por arquivo (MB)</label><input id="settings-limit" type="number" min="1" max="10240" required></div>
             <button class="button primary" type="submit">Salvar configurações</button>
           </form>
+        </section>
+        <section class="panel narrow">
+          <h2>Aplicativo local</h2>
+          <p>Encerre o servidor e cancele downloads ou exportações em andamento antes de fechar esta guia.</p>
+          <button class="button secondary" id="shutdown-app" type="button">Encerrar Media Studio</button>
         </section>
       </section>
 

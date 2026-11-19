@@ -9,13 +9,13 @@ from __future__ import annotations
 # ————————————————————————————— Paleta oficial —————————————————————————————
 # Tokens base da marca Media Studio.
 PALETTE = {
-    "bg": "#04222B",        # Background principal
-    "surface": "#0A3D4A",   # Superfície secundária
+    "bg": "#04222B",  # Background principal
+    "surface": "#0A3D4A",  # Superfície secundária
     "surface_elevated": "#10606F",  # Superfície elevada
     "petroleo": "#1D8B94",  # Azul-petróleo
     "turquesa": "#4FB8B4",  # Turquesa principal
     "turquesa_claro": "#98D8D0",  # Turquesa claro
-    "branco_suave": "#E2F4F0",    # Branco suave
+    "branco_suave": "#E2F4F0",  # Branco suave
 }
 
 # Tokens semânticos para tema escuro (único tema suportado)
@@ -28,20 +28,17 @@ DARK = {
     "border": "#1F5C63",
     "border_focus": PALETTE["turquesa"],
     "border_input": "#2A6B72",
-
     # Texto
     "text_primary": PALETTE["branco_suave"],
     "text_secondary": PALETTE["turquesa_claro"],
     "text_muted": "#6E9E9A",
     "text_inverse": PALETTE["bg"],
-
     # Ação / destaque
     "primary": PALETTE["turquesa"],
     "primary_hover": "#6FC8C6",
     "primary_active": "#3FA09E",
     "primary_light": "rgba(79, 184, 180, 0.15)",
     "ink": PALETTE["branco_suave"],
-
     # Estados semânticos
     "success": "#4FB8B4",
     "success_bg": "rgba(79, 184, 180, 0.10)",
@@ -51,18 +48,15 @@ DARK = {
     "error_bg": "rgba(255, 107, 107, 0.10)",
     "info": "#1D8B94",
     "info_bg": "rgba(29, 139, 148, 0.10)",
-
     # Estados de interação
     "hover": "rgba(79, 184, 180, 0.08)",
     "active": "rgba(79, 184, 180, 0.15)",
     "disabled": "rgba(152, 216, 208, 0.30)",
     "disabled_text": "rgba(152, 216, 208, 0.45)",
     "focus_ring": "0 0 0 3px rgba(79, 184, 180, 0.35)",
-
     # Barra de progresso
     "progress_track": "#1F5C63",
     "progress_fill": PALETTE["turquesa"],
-
     # Sombra sutil (sem cor exagerada)
     "shadow": "0 1px 3px rgba(0, 0, 0, 0.30)",
 }

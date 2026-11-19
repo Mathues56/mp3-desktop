@@ -47,9 +47,16 @@ function navigate(next) {
   const target = document.getElementById("page-" + next);
   if (!target) return;
   document.querySelectorAll(".page").forEach(el => el.classList.toggle("active", el === target));
-  document.querySelectorAll(".nav-item").forEach(el => el.classList.toggle("active", el.dataset.page === next));
+  document.querySelectorAll(".nav-item[data-page]").forEach(el => {
+    const active = el.dataset.page === next;
+    el.classList.toggle("active", active);
+    if (active) el.setAttribute("aria-current", "page");
+    else el.removeAttribute("aria-current");
+  });
   const nav = document.querySelector('.nav-item[data-page="' + next + '"]');
-  $("breadcrumb").textContent = nav ? nav.textContent.trim() : target.querySelector("h1").textContent;
+  const more = document.querySelector(".nav-more");
+  if (more) more.open = Boolean(nav && more.contains(nav));
+  $("breadcrumb").textContent = nav ? nav.lastChild.textContent.trim() : target.querySelector("h1").textContent;
   window.scrollTo(0, 0);
   if (next === "project-detail") renderProjectDetail();
 }
@@ -374,7 +381,7 @@ function openProjectModal(project) {
   $("project-name").focus();
 }
 
-document.querySelectorAll(".nav-item").forEach(el => el.addEventListener("click", () => navigate(el.dataset.page)));
+document.querySelectorAll(".nav-item[data-page]").forEach(el => el.addEventListener("click", () => navigate(el.dataset.page)));
 document.querySelectorAll("[data-go]").forEach(el => el.addEventListener("click", event => {
   event.preventDefault();
   navigate(el.currentTarget.dataset.go);
@@ -526,4 +533,20 @@ async function init() {
   for (const preset of state.presets) $("export-preset").add(new Option(preset, preset));
   setInterval(refresh, 1000);
 }
+$("shutdown-app").addEventListener("click", async () => {
+  if (!confirm("Encerrar o Media Studio e cancelar tarefas em andamento?")) return;
+  try {
+    const response = await fetch("/api/shutdown", {
+      method: "POST",
+      headers: {"Content-Type": "application/json", "X-Local-Token": token},
+      body: "{}"
+    });
+    if (!response.ok) throw new Error("Não foi possível encerrar o Media Studio.");
+    $("shutdown-app").disabled = true;
+    notify("Media Studio encerrado. Você pode fechar esta guia.");
+  } catch (error) {
+    notify(error.message, true);
+  }
+});
+
 init();

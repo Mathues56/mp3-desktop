@@ -6,7 +6,10 @@ import json
 import mimetypes
 import os
 import secrets
+import signal
 import sqlite3
+import subprocess
+import sys
 import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -31,6 +34,40 @@ from .media import (
 ASSETS = Path(__file__).with_name("web_assets")
 
 
+def _mac_dialog(kind: str):
+    if kind == "videos":
+        script = """try
+ set chosenItems to choose file with multiple selections allowed with prompt "Importar vídeos"
+on error number -128
+ return ""
+end try
+set itemPaths to {}
+repeat with selectedItem in chosenItems
+ set end of itemPaths to POSIX path of selectedItem
+end repeat
+set AppleScript's text item delimiters to character id 31
+return itemPaths as text"""
+    else:
+        script = """try
+ set selectedFolder to choose folder with prompt "Escolher pasta"
+on error number -128
+ return ""
+end try
+return POSIX path of selectedFolder"""
+    result = subprocess.run(
+        ["/usr/bin/osascript", "-e", script],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    if result.returncode:
+        raise OSError("O seletor nativo do macOS não pôde ser aberto.")
+    output = result.stdout.removesuffix("\n").removesuffix("\r")
+    if kind == "videos":
+        return output.split("\x1f") if output else []
+    return output
+
+
 class StudioService:
     def __init__(self):
         with closing(storage.connect()):
@@ -38,6 +75,8 @@ class StudioService:
         self.lock = threading.RLock()
         self.dialog_lock = threading.Lock()
         self.download: Download | None = None
+        self.download_worker: threading.Thread | None = None
+        self.closing = False
         self.download_state = {
             "status": "idle",
             "received": 0,
@@ -50,6 +89,7 @@ class StudioService:
         self.export_progress = 0.0
         self.export_id: int | None = None
         self.export_worker: threading.Thread | None = None
+        self.export_requested = False
         self._start_next_export()
 
     def _db(self):
@@ -126,6 +166,8 @@ class StudioService:
         if kind not in {"videos", "download_folder", "export_folder"}:
             raise ValueError("Seleção inválida.")
         with self.dialog_lock:
+            if sys.platform == "darwin":
+                return _mac_dialog(kind)
             root = Tk()
             root.withdraw()
             root.attributes("-topmost", True)
@@ -192,6 +234,8 @@ class StudioService:
         if not 1 <= limit <= 10240:
             raise ValueError("O limite deve ficar entre 1 e 10240 MB.")
         with self.lock:
+            if self.closing:
+                raise ValueError("O Media Studio está sendo encerrado.")
             if self.download_state["status"] in {"running", "paused"}:
                 raise ValueError("Já existe um download ativo.")
             self.download = Download(url, folder, max_bytes=limit * 1024 * 1024)
@@ -203,7 +247,11 @@ class StudioService:
                 "resumable": False,
                 "message": "Conectando…",
             }
-        threading.Thread(target=self._run_download, daemon=True).start()
+            self._start_download_worker()
+
+    def _start_download_worker(self):
+        self.download_worker = threading.Thread(target=self._run_download, daemon=True)
+        self.download_worker.start()
 
     def _run_download(self):
         job = self.download
@@ -237,6 +285,8 @@ class StudioService:
 
     def download_action(self, action):
         with self.lock:
+            if self.closing:
+                raise ValueError("O Media Studio está sendo encerrado.")
             job = self.download
             status = self.download_state["status"]
             if job is None:
@@ -250,7 +300,7 @@ class StudioService:
             elif action == "resume" and status == "paused":
                 job.pause.clear()
                 self.download_state["status"] = "running"
-                threading.Thread(target=self._run_download, daemon=True).start()
+                self._start_download_worker()
             elif action == "cancel" and status in {"running", "paused"}:
                 if status == "paused":
                     job.partial.unlink(missing_ok=True)
@@ -339,17 +389,28 @@ class StudioService:
 
     def _start_next_export(self):
         with self.lock:
+            if self.closing:
+                return
+            self.export_requested = True
             if self.export_worker and self.export_worker.is_alive():
                 return
+            self.export_requested = False
             self.export_worker = threading.Thread(target=self._run_exports, daemon=True)
             self.export_worker.start()
 
     def _run_exports(self):
         while True:
+            with self.lock:
+                if self.closing:
+                    break
+                self.export_requested = False
             with closing(self._db()) as db:
                 row = storage.next_export(db)
                 if not row:
-                    break
+                    with self.lock:
+                        if self.closing or not self.export_requested:
+                            break
+                    continue
                 (
                     export_id,
                     clip_id,
@@ -367,10 +428,16 @@ class StudioService:
                     size,
                 ) = row
                 storage.update_export(export_id, "running", None, db)
-            self.export_cancel.clear()
             with self.lock:
-                self.export_id = export_id
-                self.export_progress = 0
+                stopping = self.closing
+                if not stopping:
+                    self.export_cancel.clear()
+                    self.export_id = export_id
+                    self.export_progress = 0
+            if stopping:
+                with closing(self._db()) as db:
+                    storage.update_export(export_id, "interrupted", None, db)
+                break
             try:
                 result = export(
                     Clip(video_id, start, end, title),
@@ -390,6 +457,11 @@ class StudioService:
             with self.lock:
                 self.export_id = None
                 self.export_progress = 0
+        with self.lock:
+            self.export_worker = None
+            restart = self.export_requested and not self.closing
+        if restart:
+            self._start_next_export()
 
     def _set_export_progress(self, value):
         with self.lock:
@@ -399,7 +471,12 @@ class StudioService:
         path = Path(str(data.get("path", ""))).expanduser()
         if not path.is_dir():
             raise ValueError("Pasta não encontrada.")
-        os.startfile(path)
+        if sys.platform == "win32":
+            os.startfile(path)
+        else:
+            subprocess.Popen(
+                ["/usr/bin/open" if sys.platform == "darwin" else "xdg-open", str(path)]
+            )
 
     def settings(self, data):
         folder = str(data.get("folder", "")).strip()
@@ -407,6 +484,17 @@ class StudioService:
         if not folder or not 1 <= limit <= 10240:
             raise ValueError("Informe uma pasta e um limite entre 1 e 10240 MB.")
         storage.save_settings({"folder": folder, "limit_mb": limit})
+
+    def close(self):
+        with self.lock:
+            self.closing = True
+            if self.download is not None:
+                self.download.cancel.set()
+            self.export_cancel.set()
+            workers = [self.download_worker, self.export_worker]
+        for worker in workers:
+            if worker and worker is not threading.current_thread():
+                worker.join(timeout=22)
 
 
 def make_handler(service: StudioService, token: str):
@@ -431,6 +519,30 @@ def make_handler(service: StudioService, token: str):
             )
             self.end_headers()
             self.wfile.write(payload)
+
+        def _is_local_request(self):
+            try:
+                host = urlsplit("//" + self.headers.get("Host", ""))
+                port = self.server.server_port
+                if (
+                    host.hostname not in {"127.0.0.1", "localhost"}
+                    or host.port not in {None, port}
+                    or host.username is not None
+                    or host.password is not None
+                ):
+                    return False
+                origin = self.headers.get("Origin")
+                if origin:
+                    parsed_origin = urlsplit(origin)
+                    if (
+                        parsed_origin.scheme != "http"
+                        or parsed_origin.hostname not in {"127.0.0.1", "localhost"}
+                        or parsed_origin.port not in {None, port}
+                    ):
+                        return False
+                return True
+            except ValueError:
+                return False
 
         def _send_media(self, path):
             size = path.stat().st_size
@@ -486,6 +598,8 @@ def make_handler(service: StudioService, token: str):
                     remaining -= len(block)
 
         def do_GET(self):
+            if not self._is_local_request():
+                return self._send(403, {"error": "Origem local inválida."})
             request = urlsplit(self.path)
             if request.path == "/":
                 page = (
@@ -502,7 +616,10 @@ def make_handler(service: StudioService, token: str):
                     else "text/javascript; charset=utf-8"
                 )
                 return self._send(200, (ASSETS / suffix).read_bytes(), mime)
-            if request.path == "/api/state" and self.headers.get("X-Local-Token") == token:
+            if (
+                request.path == "/api/state"
+                and self.headers.get("X-Local-Token") == token
+            ):
                 return self._send(200, service.state())
             if request.path.startswith("/media/"):
                 media_id = request.path.removeprefix("/media/")
@@ -519,6 +636,8 @@ def make_handler(service: StudioService, token: str):
             self._send(404, {"error": "Não encontrado."})
 
         def do_HEAD(self):
+            if not self._is_local_request():
+                return self._send(403, {"error": "Origem local inválida."})
             request = urlsplit(self.path)
             if not request.path.startswith("/media/"):
                 return self._send(404, {"error": "Não encontrado."})
@@ -535,6 +654,8 @@ def make_handler(service: StudioService, token: str):
             return self._send_media(path)
 
         def do_POST(self):
+            if not self._is_local_request():
+                return self._send(403, {"error": "Origem local inválida."})
             if self.headers.get("X-Local-Token") != token:
                 return self._send(403, {"error": "Acesso negado."})
             if self.headers.get("Content-Type", "").split(";")[0] != "application/json":
@@ -547,6 +668,7 @@ def make_handler(service: StudioService, token: str):
                 if not isinstance(data, dict):
                     raise ValueError("Pedido inválido.")
                 action = self.path.removeprefix("/api/")
+                should_shutdown = False
                 if action == "choose":
                     result = service.choose(str(data.get("kind", "")))
                 elif action == "import":
@@ -582,9 +704,14 @@ def make_handler(service: StudioService, token: str):
                 elif action == "settings":
                     service.settings(data)
                     result = None
+                elif action == "shutdown":
+                    result = None
+                    should_shutdown = True
                 else:
                     return self._send(404, {"error": "Ação não encontrada."})
                 self._send(200, {"ok": True, "result": result})
+                if should_shutdown:
+                    threading.Thread(target=self.server.shutdown, daemon=True).start()
             except (
                 ValueError,
                 TypeError,
@@ -601,13 +728,22 @@ def make_handler(service: StudioService, token: str):
 def main():
     service = StudioService()
     token = secrets.token_urlsafe(32)
-    server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(service, token))
+    port = int(os.environ.get("MP3_DESKTOP_PORT", "0"))
+    server = ThreadingHTTPServer(("127.0.0.1", port), make_handler(service, token))
     url = f"http://127.0.0.1:{server.server_port}/"
     print(f"MP3 Desktop: {url}", flush=True)
-    webbrowser.open(url)
+    if os.environ.get("MP3_DESKTOP_NO_BROWSER") != "1":
+        webbrowser.open(url)
+
+    def terminate(_signum, _frame):
+        raise KeyboardInterrupt
+
+    previous_sigterm = signal.signal(signal.SIGTERM, terminate)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
         pass
     finally:
         server.server_close()
+        service.close()
+        signal.signal(signal.SIGTERM, previous_sigterm)
